@@ -1,0 +1,126 @@
+---
+title: "FA2 Applied Multivariate Analysis"
+author: "Bayquen, Christopher Gilbert A."
+date: "2024-09-09"
+output:
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(gridExtra)
+library(moments)
+library(car)
+```
+```{r, global_options, include=FALSE}
+knitr::opts_chunk$set(message=FALSE, tidy.opts=list(width.cutoff=60), tidy=TRUE)
+```
+
+### Two-Way ANOVA (2B) | Political Interest : Gender and Educational Attainment
+
+```{r}
+df = read.csv("Political Interest.csv")
+df$gender <- factor(df$gender, levels =  c(1,2), labels = c("male", "female"))
+df$education_level <- factor(df$education_level, levels = c(1,2,3), labels = c("school", "college", "university"))
+
+kable(head(df, 10), caption = " Political Interest : Gender and Educational Attainment")
+```
+
+### Checking for Assumptions
+
+### Assumption 1: You have one dependent variable that is measured at the continuous level
+
+> Remark : The dependent variable, **Political Interest**, is measured at the continuous level
+
+### Assumption 2: You have two independent variables where each independent variable consists of two or more categorical, independent groups. An independent variable with only two groups is known as a dichotomous variable whereas an independent variable with three or more groups is referred to as a polytomous variable.
+
+> Remark : We have two independent variables in this dataset, **gender** and **educational level**, where both of the independent variables are categorical. **Gender** contains only two groups (*male* and *female*), while **educational level** contains three groups (*school*, *college*, and *university*).
+
+### Assumption 3: You should have independence of observations, which means that there is no relationship between the observations in each group of the independent variable or between the groups themselves.
+
+> Remark : There is no relationship between the observations in each group of the independent variable or between the groups themselves.
+
+### Assumption 4: There should be no significant outliers in any cell of the design
+
+```{r, echo = FALSE}
+ggplot(df, aes(x = education_level, y = political_interest, fill = gender)) +
+  geom_boxplot() +
+  facet_wrap(~ gender) +
+  labs(title = "Political Interest by Education Level and Gender",
+       x = "Education Level", 
+       y = "Political Interest") +
+  theme_minimal()
+
+```
+
+> Remark : As we can observe with the boxplots above, there are no significant outliers for each of the genders, under each of the educational levels.
+
+### Assumption 5: The distribution of the dependent variable (residuals) should be approximately normally distributed in every cell of the design.
+
+```{r, echo = FALSE }
+# Fit a linear model with political_interest as the dependent variable
+model <- lm(political_interest ~ gender * education_level, data = df)
+
+# Get the residuals and add them to the dataframe
+df$residuals <- residuals(model)
+
+shapiro_results <- df %>%
+  group_by(gender, education_level) %>%
+  summarise(shapiro_p_value = shapiro.test(residuals)$p.value, .groups = "drop")
+
+kable(shapiro_results, caption = "Shapiro-Wilk Test")
+
+```
+
+> Remark: The Political interest of each group is normally distributed as assessed by the Shapiro-Wilk’s
+test, p > 0.05.
+
+
+### Assumption 6: The variance of the dependent variable (residuals) should be equal in every cell of the design.
+
+```{r}
+leveneTest(political_interest ~ gender * education_level, data = df)
+```
+
+> Remarks : There are homogeneity of variances in the dependent variables for all of the groups, as assessed by Levene’s test of homogeneity of variances, p = 0.06765. 
+
+\newpage
+
+### Implementing the Two-Way ANOVA
+
+```{r}
+# Fitting the  two-way ANOVA model
+anova_model <- aov(political_interest ~ gender * education_level, data = df)
+
+summary(anova_model)
+```
+
+```{r}
+# Conduct Tukey's Honest Significant Difference test
+TukeyHSD(anova_model)
+
+```
+
+### Analysis and Conclusion
+
+
+A two-way ANOVA was conducted to examine the effects of gender and education level on political interest using the provided dataset. The model was specified as **political_interest ~ (gender)(education_level)**, and the summary of the ANOVA results indicated that education level had a significant effect on political interest `(F(2,52)=188.136, p < 2e-16)`, whereas the main effect of gender was not statistically significant `(F(1,52)=1.788, p=0.187)`. However, the interaction between gender and education level was significant `(F(2,52)=7.315, p=0.00159)`, suggesting that the effect of education level on political interest varies by gender.
+
+Residual analysis confirmed that the assumptions of the ANOVA were met: there were no outliers, residuals were normally distributed, and there was homogeneity of variances with a p-value of  p = 0.06765. 
+
+For females, political interest scores varied significantly with education level. The mean scores were 39.60 +- 3.27 for school-educated, 44.60 +- 3.27 for college-educated, and 58.00 +- 6.46 for university-educated females. For males, the mean scores were 37.44 +- 2.51 for school-educated, 42.94 +- 2.34 for college-educated, and 64.10 +- 3.07 for university-educated males. The pairwise comparisons revealed significant differences between education levels, with both school-educated and college-educated individuals showing notably lower political interest compared to their university-educated counterparts. Notably, there were significant differences between:
+
+
+>   Female: College vs. Male: School
+
+>   Male: University vs. Male: School
+ 
+>   Female: University vs. Male: School
+
+>   Various other education level and gender combinations.
+
+In conclusion, while gender alone does not significantly influence political interest, education level has a strong impact, with higher levels of education correlating with increased political interest. The significant interaction indicates that the effect of education level on political interest is different for males and females, highlighting the need to consider both factors in understanding political engagement.
